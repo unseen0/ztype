@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced ZType - Type to Survive</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 30%, #16213e 60%, #0f3460 100%);
+            font-family: 'Orbitron', monospace;
+            overflow: hidden;
+            color: #00ffff;
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+        
+        @keyframes backgroundShift {
+            0%, 100% { filter: hue-rotate(0deg); }
+            50% { filter: hue-rotate(15deg); }
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #gameCanvas {
+            border: 3px solid #00ffff;
+            border-radius: 15px;
+            box-shadow: 
+                0 0 30px #00ffff55,
+                inset 0 0 50px rgba(0, 255, 255, 0.1);
+            background: radial-gradient(ellipse at center, #001a33 0%, #000d1a 100%);
+            position: relative;
+        }
+        
+        #gameCanvas::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            background: linear-gradient(45deg, #00ffff, #0088ff, #00ffff);
+            border-radius: 15px;
+            z-index: -1;
+            animation: borderGlow 3s ease-in-out infinite;
+        }
+        
+        @keyframes borderGlow {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .ui-panel {
+            background: linear-gradient(135deg, 
+                rgba(0, 255, 255, 0.15) 0%, 
+                rgba(0, 136, 255, 0.15) 50%, 
+                rgba(0, 255, 255, 0.15) 100%);
+            border: 2px solid rgba(0, 255, 255, 0.6);
+            border-radius: 10px;
+            padding: 15px 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 8px 32px rgba(0, 255, 255, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .ui-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0, 255, 255, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+        
+        .ui-text {
+            margin: 4px 0;
+            font-size: 16px;
+            font-weight: 600;
+            text-shadow: 0 0 8px #00ffff;
+            letter-spacing: 0.5px;
+        }
+        
+        .ui-text span {
+            color: #00ff88;
+            font-weight: 700;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        
+        #gameOverScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            display: none;
+            z-index: 20;
+        }
+        
+        .game-title {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        .restart-btn {
+            background: linear-gradient(45deg, #00ffff, #0088ff);
+            border: none;
+            color: #000;
+            padding: 10px 20px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        
+        .restart-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #00ffff;
+        }
+        
+        #currentWord {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.9) 0%, 
+                rgba(0, 20, 40, 0.9) 100%);
+            padding: 15px 30px;
+            border-radius: 15px;
+            border: 2px solid #00ffff;
+            letter-spacing: 3px;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.5),
+                0 0 20px rgba(0, 255, 255, 0.3);
+        }
+        
+        .typed {
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        
+        .current {
+            color: #ffff00;
+            text-shadow: 0 0 10px #ffff00;
+            animation: pulse 0.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .untyped {
+            color: #ffffff;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1000" height="700"></canvas>
+        
+        <div id="ui">
+            <div class="ui-panel">
+                <div class="ui-text">Score: <span id="score">0</span></div>
+                <div class="ui-text">Level: <span id="level">1</span></div>
+                <div class="ui-text">Lives: <span id="lives">3</span></div>
+            </div>
+            <div class="ui-panel">
+                <div class="ui-text">Accuracy: <span id="accuracy">100%</span></div>
+                <div class="ui-text">WPM: <span id="wpm">0</span></div>
+                <div class="ui-text">Combo: <span id="combo">0</span></div>
+            </div>
+        </div>
+        
+        <div id="currentWord"></div>
+        
+        <div id="instructions">
+            Type the words on enemy ships to destroy them!<br>
+            Press SPACE to target next enemy • ESC to pause
+        </div>
+        
+        <div id="gameOverScreen">
+            <div class="game-title">ENHANCED ZTYPE</div>
+            <div id="gameOverText">Game Over</div>
+            <div>Final Score: <span id="finalScore">0</span></div>
+            <div>Accuracy: <span id="finalAccuracy">0%</span></div>
+            <div>Max Combo: <span id="maxCombo">0</span></div>
+            <button class="restart-btn" onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Game state
+        let gameRunning = false;
+        let gameOver = false;
+        let score = 0;
+        let level = 1;
+        let lives = 3;
+        let accuracy = 100;
+        let wpm = 0;
+        let combo = 0;
+        let maxCombo = 0;
+        let totalTyped = 0;
+        let correctTyped = 0;
+        let gameStartTime = Date.now();
+        
+        // Game objects
+        let player = { x: 500, y: 650, width: 40, height: 30 };
+        let enemies = [];
+        let bullets = [];
+        let particles = [];
+        let powerups = [];
+        let stars = [];
+        
+        // Current target
+        let currentTarget = null;
+        let currentWordIndex = 0;
+        
+        // Word lists by difficulty
+        const easyWords = ['cat', 'dog', 'run', 'jump', 'code', 'type', 'game', 'fire', 'star', 'ship'];
+        const mediumWords = ['coding', 'typing', 'galaxy', 'plasma', 'rocket', 'destroy', 'enemy', 'target', 'laser', 'combat'];
+        const hardWords = ['javascript', 'algorithm', 'spaceship', 'universe', 'explosion', 'adventure', 'challenge', 'keyboard', 'accuracy', 'precision'];
+        
+        // Initialize stars background
+        function initStars() {
+            for (let i = 0; i < 100; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2 + 0.5,
+                    speed: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+        
+        // Create particle effects
+        function createParticles(x, y, count, color) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 10,
+                    vy: (Math.random() - 0.5) * 10,
+                    life: 60,
+                    maxLife: 60,
+                    color: color,
+                    size: Math.random() * 4 + 2
+                });
+            }
+        }
+        
+        // Get word list based on level with better progression
+        function getWordList() {
+            if (level <= 2) return easyWords.slice(0, 6); // Start with fewer words
+            if (level <= 4) return easyWords;
+            if (level <= 6) return [...easyWords, ...mediumWords.slice(0, 5)];
+            if (level <= 8) return mediumWords;
+            return [...mediumWords, ...hardWords.slice(0, 5)];
+        }
+        
+        // Create enemy
+        function createEnemy() {
+            const words = getWordList();
+            const word = words[Math.floor(Math.random() * words.length)];
+            
+            enemies.push({
+                x: Math.random() * (canvas.width - 100) + 50,
+                y: -50,
+                width: word.length * 15 + 20,
+                height: 30,
+                word: word,
+                speed: Math.min(0.5 + level * 0.1, 3),
+                health: word.length,
+                maxHealth: word.length,
+                targeted: false
+            });
+        }
+        
+        // Create bullet
+        function createBullet(x, y, targetX, targetY) {
+            const angle = Math.atan2(targetY - y, targetX - x);
+            bullets.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * 8,
+                vy: Math.sin(angle) * 8,
+                life: 100
+            });
+        }
+        
+        // Update game objects
+        function update() {
+            if (!gameRunning || gameOver) return;
+            
+            // Update stars
+            stars.forEach(star => {
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = -5;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+            
+            // Update enemies
+            enemies.forEach((enemy, index) => {
+                enemy.y += enemy.speed;
+                
+                // Check if enemy reached bottom
+                if (enemy.y > canvas.height) {
+                    enemies.splice(index, 1);
+                    lives--;
+                    combo = 0;
+                    if (enemy === currentTarget) {
+                        currentTarget = null;
+                        currentWordIndex = 0;
+                    }
+                    
+                    if (lives <= 0) {
+                        gameOver = true;
+                        showGameOver();
+                    }
+                }
+            });
+            
+            // Update bullets
+            bullets.forEach((bullet, index) => {
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+                bullet.life--;
+                
+                if (bullet.life <= 0 || bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0) {
+                    bullets.splice(index, 1);
+                }
+            });
+            
+            // Update particles
+            particles.forEach((particle, index) => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vx *= 0.98;
+                particle.vy *= 0.98;
+                particle.life--;
+                
+                if (particle.life <= 0) {
+                    particles.splice(index, 1);
+                }
+            });
+            
+            // Spawn enemies based on level (much more controlled)
+            let spawnRate = 0.008; // Base spawn rate
+            
+            // Level-based spawn rate adjustment
+            if (level <= 2) {
+                spawnRate = 0.008; // Very slow for beginners
+            } else if (level <= 4) {
+                spawnRate = 0.012; // Slow
+            } else if (level <= 6) {
+                spawnRate = 0.016; // Medium
+            } else if (level <= 8) {
+                spawnRate = 0.020; // Fast
+            } else {
+                spawnRate = 0.025; // Very fast for experts
+            }
+            
+            // Limit maximum enemies on screen
+            const maxEnemies = Math.min(3 + Math.floor(level / 2), 8);
+            
+            if (Math.random() < spawnRate && enemies.length < maxEnemies) {
+                createEnemy();
+            }
+            
+            // Update level progression (slower, more balanced)
+            const newLevel = Math.floor(score / 800) + 1; // Increased from 500 to 800
+            if (newLevel > level) {
+                level = newLevel;
+                createParticles(canvas.width / 2, canvas.height / 2, 30, '#00ff00');
+                
+                // Show level up notification
+                setTimeout(() => {
+                    createParticles(canvas.width / 2, 100, 20, '#ffff00');
+                }, 500);
+            }
+            
+            // Calculate WPM
+            const timeElapsed = (Date.now() - gameStartTime) / 60000; // minutes
+            wpm = Math.floor((correctTyped / 5) / Math.max(timeElapsed, 0.01));
+            
+            updateUI();
+        }
+        
+        // Render game
+        function render() {
+            // Clear canvas with enhanced gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#000819');
+            gradient.addColorStop(0.3, '#001a33');
+            gradient.addColorStop(0.7, '#000d26');
+            gradient.addColorStop(1, '#001122');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Add subtle grid pattern
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < canvas.width; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            // Draw enhanced stars with twinkling effect
+            stars.forEach((star, index) => {
+                const twinkle = Math.sin(Date.now() * 0.001 + index) * 0.3 + 0.7;
+                ctx.globalAlpha = (star.size / 2) * twinkle;
+                ctx.fillStyle = star.size > 1.5 ? '#00ffff' : '#ffffff';
+                ctx.shadowColor = star.size > 1.5 ? '#00ffff' : '#ffffff';
+                ctx.shadowBlur = star.size > 1.5 ? 3 : 1;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+            
+            // Draw enhanced player with thruster effects
+            const thrusterIntensity = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+            
+            // Player body
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
+            ctx.fillRect(player.x - player.width/2, player.y - player.height/2, player.width, player.height);
+            
+            // Player cockpit
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.fillRect(player.x - 6, player.y - 18, 12, 8);
+            
+            // Thruster effects
+            ctx.shadowColor = '#ff6600';
+            ctx.shadowBlur = 20;
+            ctx.globalAlpha = thrusterIntensity;
+            ctx.fillStyle = '#ff6600';
+            ctx.fillRect(player.x - 8, player.y + 10, 4, 15);
+            ctx.fillRect(player.x + 4, player.y + 10, 4, 15);
+            ctx.fillStyle = '#ffff00';
+            ctx.fillRect(player.x - 6, player.y + 12, 2, 10);
+            ctx.fillRect(player.x + 6, player.y + 12, 2, 10);
+            
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+            
+            // Draw enemies
+            enemies.forEach(enemy => {
+                // Enemy body
+                const isTargeted = enemy === currentTarget;
+                ctx.fillStyle = isTargeted ? '#ff6600' : '#ff3333';
+                ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2, enemy.width, enemy.height);
+                
+                // Enemy glow
+                if (isTargeted) {
+                    ctx.shadowColor = '#ff6600';
+                    ctx.shadowBlur = 15;
+                    ctx.fillStyle = '#ffaa44';
+                    ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2, enemy.width, enemy.height);
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Health bar
+                const healthPercent = enemy.health / enemy.maxHealth;
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2 - 8, enemy.width, 4);
+                ctx.fillStyle = healthPercent > 0.5 ? '#00ff00' : healthPercent > 0.25 ? '#ffff00' : '#ff0000';
+                ctx.fillRect(enemy.x - enemy.width/2, enemy.y - enemy.height/2 - 8, enemy.width * healthPercent, 4);
+                
+                // Word
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Orbitron';
+                ctx.textAlign = 'center';
+                
+                if (isTargeted) {
+                    // Highlight typed portion
+                    const typed = enemy.word.substring(0, currentWordIndex);
+                    const current = enemy.word[currentWordIndex] || '';
+                    const remaining = enemy.word.substring(currentWordIndex + 1);
+                    
+                    let xOffset = -enemy.word.length * 4;
+                    
+                    // Typed (green)
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillText(typed, enemy.x + xOffset, enemy.y + 5);
+                    xOffset += typed.length * 8;
+                    
+                    // Current (yellow)
+                    ctx.fillStyle = '#ffff00';
+                    ctx.fillText(current, enemy.x + xOffset, enemy.y + 5);
+                    xOffset += 8;
+                    
+                    // Remaining (white)
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillText(remaining, enemy.x + xOffset, enemy.y + 5);
+                } else {
+                    ctx.fillText(enemy.word, enemy.x, enemy.y + 5);
+                }
+            });
+            
+            // Draw bullets
+            ctx.fillStyle = '#00ffff';
+            bullets.forEach(bullet => {
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 5;
+                ctx.fillRect(bullet.x - 2, bullet.y - 2, 4, 4);
+            });
+            ctx.shadowBlur = 0;
+            
+            // Draw particles
+            particles.forEach(particle => {
+                const alpha = particle.life / particle.maxLife;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = particle.color;
+                ctx.fillRect(particle.x - particle.size/2, particle.y - particle.size/2, particle.size, particle.size);
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        // Handle typing
+        function handleTyping(key) {
+            if (!gameRunning || gameOver) return;
+            
+            totalTyped++;
+            
+            // If no current target, find one
+            if (!currentTarget && enemies.length > 0) {
+                // Find enemy that starts with this key
+                for (let enemy of enemies) {
+                    if (enemy.word[0].toLowerCase() === key.toLowerCase()) {
+                        currentTarget = enemy;
+                        currentTarget.targeted = true;
+                        currentWordIndex = 1;
+                        correctTyped++;
+                        
+                        // Fire bullet at enemy
+                        createBullet(player.x, player.y - 20, enemy.x, enemy.y);
+                        createParticles(player.x, player.y - 20, 3, '#00ffff');
+                        
+                        break;
+                    }
+                }
+                
+                if (!currentTarget) {
+                    // Wrong key, lose combo
+                    combo = 0;
+                }
+            } else if (currentTarget) {
+                // Continue typing current word
+                if (currentWordIndex < currentTarget.word.length && 
+                    currentTarget.word[currentWordIndex].toLowerCase() === key.toLowerCase()) {
+                    
+                    currentWordIndex++;
+                    correctTyped++;
+                    
+                    // Fire bullet
+                    createBullet(player.x, player.y - 20, currentTarget.x, currentTarget.y);
+                    createParticles(player.x, player.y - 20, 3, '#00ffff');
+                    
+                    // Check if word completed
+                    if (currentWordIndex >= currentTarget.word.length) {
+                        // Destroy enemy
+                        const enemy = currentTarget;
+                        const enemyIndex = enemies.indexOf(enemy);
+                        if (enemyIndex > -1) {
+                            enemies.splice(enemyIndex, 1);
+                            
+                            // Add score with combo multiplier
+                            const baseScore = enemy.word.length * 10;
+                            const comboBonus = combo * 5;
+                            score += baseScore + comboBonus;
+                            combo++;
+                            
+                            if (combo > maxCombo) {
+                                maxCombo = combo;
+                            }
+                            
+                            // Create explosion
+                            createParticles(enemy.x, enemy.y, 15, '#ff6600');
+                            createParticles(enemy.x, enemy.y, 10, '#ffff00');
+                        }
+                        
+                        currentTarget = null;
+                        currentWordIndex = 0;
+                    }
+                } else {
+                    // Wrong letter, lose combo
+                    combo = 0;
+                }
+            }
+            
+            // Update accuracy
+            accuracy = Math.floor((correctTyped / totalTyped) * 100);
+        }
+        
+        // Update UI
+        function updateUI() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('lives').textContent = lives;
+            document.getElementById('accuracy').textContent = accuracy + '%';
+            document.getElementById('wpm').textContent = wpm;
+            document.getElementById('combo').textContent = combo;
+            
+            // Update current word display
+            const currentWordEl = document.getElementById('currentWord');
+            if (currentTarget) {
+                const typed = currentTarget.word.substring(0, currentWordIndex);
+                const current = currentTarget.word[currentWordIndex] || '';
+                const remaining = currentTarget.word.substring(currentWordIndex + 1);
+                
+                currentWordEl.innerHTML = 
+                    `<span class="typed">${typed}</span>` +
+                    `<span class="current">${current}</span>` +
+                    `<span class="untyped">${remaining}</span>`;
+                currentWordEl.style.display = 'block';
+            } else {
+                currentWordEl.style.display = 'none';
+            }
+        }
+        
+        // Show game over screen
+        function showGameOver() {
+            document.getElementById('gameOverScreen').style.display = 'block';
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalAccuracy').textContent = accuracy + '%';
+            document.getElementById('maxCombo').textContent = maxCombo;
+        }
+        
+        // Restart game
+        function restartGame() {
+            gameOver = false;
+            gameRunning = true;
+            score = 0;
+            level = 1;
+            lives = 3;
+            accuracy = 100;
+            combo = 0;
+            maxCombo = 0;
+            totalTyped = 0;
+            correctTyped = 0;
+            gameStartTime = Date.now();
+            
+            enemies = [];
+            bullets = [];
+            particles = [];
+            currentTarget = null;
+            currentWordIndex = 0;
+            
+            document.getElementById('gameOverScreen').style.display = 'none';
+            updateUI();
+        }
+        
+        // Game loop
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Event listeners
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                gameRunning = !gameRunning;
+            } else if (e.key === ' ' && currentTarget) {
+                // Space to skip to next enemy
+                currentTarget.targeted = false;
+                currentTarget = null;
+                currentWordIndex = 0;
+                e.preventDefault();
+            } else if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+                handleTyping(e.key);
+                e.preventDefault();
+            }
+        });
+        
+        // Start game
+        initStars();
+        restartGame();
+        gameLoop();
+    </script>
+</body>
+</html>
